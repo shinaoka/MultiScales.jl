@@ -1,6 +1,6 @@
-using MultiScales
 using Test
+using MultiScales
 
 @testset "MultiScales.jl" begin
-    # Write your tests here.
+    include("arithmetic.jl")
 end
