@@ -31,6 +31,22 @@ function _ader(;half::Bool=false, last::Bool=false, antiperiodic::Bool=true)
     return ader
 end
 
-function _tensor_for_addition()
+"""
+MPO tensor selecting a or b
+Return size: (left bod dim=1, right bond dim=1, input a, input b, output)
+"""
+function _selector(which=:left)
+    (which == :left || which == :right) || error("which must be :left or :right")
+    cin_size = 1
+    cout_size = 1
+    selector = Tensor(ComplexF64, cin_size, cout_size, 2, 2, 2)
+    for b in 0:1, a in 0:1
+        res = (which == :left ? a : b)
+        selector[1, 1, a+1, b+1, res+1] = 1
+    end
+    return selector
+end
+
+function fouriertransformer()
     #
 end
