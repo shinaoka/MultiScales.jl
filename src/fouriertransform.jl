@@ -29,7 +29,7 @@ where we define the transformation matrix ``T`` and ``s = \pm 1``.
 """
 function _qft(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
     abs(sign) == 1 || error("sign must either 1 or -1")
-    inputorder ∈ [:normal, :reversed] || error("Invalid inputourder")
+    inputorder ∈ [:normal, :reversed] || error("Invalid inputorder")
 
     nbit = length(sites)
     N = 2^nbit

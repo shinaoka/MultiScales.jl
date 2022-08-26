@@ -16,17 +16,18 @@ using ITensors
         @assert bitat(2, 2) == 1
 
         # Input function `f(x)` is 1 only at xin otherwise 0.
-        xin = 3 # 1-start
-        @assert xin <= N
-        tmp = collect(string(bitat(xin-1, pos)) for pos in nbit:-1:1)
+        xin = 2 # 0-based
+        @assert xin <= N - 1
+        tmp = collect(string(bitat(xin, pos)) for pos in nbit:-1:1)
         mpsf = MPS(sites, tmp)
 
-        # Physical indices from lef to right: t_Q, ..., t_1
+        # Physical indices from left to right: x_Q, ..., x_1
         mpsg = reduce(*, noprime(contract(M, mpsf)))
 
         # Values of output function
         outfunc = vec(Array(mpsg, sites))
 
-        @test outfunc ≈ [exp(sign * im * 2π * (t-1) * (xin-1)/N)/sqrt(N) for t in 1:N]
+        @test outfunc ≈ [exp(sign * im * 2π * y * xin/N)/sqrt(N) for y in 0:(N-1)]
     end
+    #@test false
 end
