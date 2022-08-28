@@ -16,3 +16,10 @@ function forwardmpo(ftcore::FTCore, sites)
     replace_mpo_siteinds!(M, sites)
     return M
 end
+
+
+function backwardmpo(ftcore::FTCore, sites)
+    M = MPO(reverse([x for x in ftcore.forward]))
+    replace_mpo_siteinds!(M, sites)
+    return M
+end

@@ -1,6 +1,6 @@
 using Test
 using MultiScales
-using ITensors
+import ITensors: siteinds
 import SparseIR: Fermionic, Bosonic, FermionicFreq, valueim
 
 function _test_data_imaginarytime(nbit, β)

@@ -43,3 +43,4 @@ function decompose(gtau_smpl::Vector{ComplexF64}, sites; kwargs...)
 
     return MPS(gtau_smpl, sites; kwargs...)
 end
+
