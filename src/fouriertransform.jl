@@ -33,6 +33,7 @@ function _qft(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
 
     nbit = length(sites)
     N = 2^nbit
+    sites = noprime(sites)
 
     tmat = zeros(ComplexF64, N, N)
     for t in 0:N-1, x in 0:N-1
@@ -48,5 +49,7 @@ function _qft(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
     else
         trans_t = ITensor(tmat, sites..., prime(reverse(sites))...)
     end
-    return MPO(trans_t, sites; cutoff=cutoff)
+    M = MPO(trans_t, sites; cutoff=cutoff)
+    #@show "_qft", M
+    return M
 end
