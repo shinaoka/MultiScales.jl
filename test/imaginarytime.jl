@@ -1,6 +1,7 @@
 using Test
 using MultiScales
-import ITensors: siteinds
+import ITensors: siteinds, Index
+import ITensors
 import SparseIR: Fermionic, Bosonic, FermionicFreq, valueim
 
 function _test_data_imaginarytime(nbit, β)
@@ -33,8 +34,6 @@ end
         sites = siteinds("Qubit", nbit)
         gtau_mps = MultiScales.decompose_gtau(gtau_smpl, sites; cutoff = 1e-20)
 
-        #@show gtau_mps
-
         gtau_smpl_reconst = vec(Array(reduce(*, gtau_mps), reverse(sites)...))
 
         @test gtau_smpl_reconst ≈ gtau_smpl
@@ -61,7 +60,6 @@ end
                 #println(file, i, " ", real(giv[i]), " ", imag(giv[i]), " ", real(giv_smpl[i]), " ", imag(giv_smpl[i]))
             #end
         #end
-        ##@show giv_mps
 
         @test maximum(abs, giv - giv_smpl) < 2e-2
         #@test false
@@ -80,28 +78,21 @@ end
 
         ftcore = MultiScales.FTCore(sites)
         ft = MultiScales.ImaginaryTimeFT(ftcore)
-        #@show "AAAAA"
         gtau_mps = MultiScales.to_tau(Fermionic(), ft, giv_mps, β; cutoff = 1e-20)
-        #@show "AAAAA"
-        #@show gtau_mps
-        #@show "AAAAA"
 
         # tau_Q, ..., tau_1
-        #@show MultiScales.backwardmpo(ftcore, sites)
-        #@show giv_mps
-        @show gtau_mps
         t = gtau_mps[1] * gtau_mps[2]
         #println("1 ", inds(t))
         gtau = vec(Array(reduce(*, gtau_mps), reverse(sites)...))
 
-        open("test.txt", "w") do file
-            for i in 1:nτ
-                println(file, i, " ", real(gtau[i]), " ", imag(gtau[i]), " ", real(gtau_smpl[i]), " ", imag(gtau_smpl[i]))
-            end
-        end
-        ##@show giv_mps
+        #open("test.txt", "w") do file
+            #for i in 1:nτ
+                #println(file, i, " ", real(gtau[i]), " ", imag(gtau[i]), " ", real(gtau_smpl[i]), " ", imag(gtau_smpl[i]))
+            #end
+        #end
 
-        @test maximum(abs, (gtau - gtau_smpl)[trunc(Int,0.2*nτ):trunc(Int,0.8*nτ)]) < 2e-2
+        # There is ocillation around tau = 0, beta.
+        @test maximum(abs, (gtau - gtau_smpl)[trunc(Int,0.2*nτ):trunc(Int,0.8*nτ)]) < 1e-2
         #@test false
     end
 end

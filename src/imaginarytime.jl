@@ -38,14 +38,11 @@ function to_tau(::Fermionic, ft::ImaginaryTimeFT, giv::MPS, beta::Float64; kwarg
     nbit_ = length(giv)
     giv = noprime(copy(giv))
 
-    @show giv
-
     N = 2^nbit_
     sites = extractsites(giv)
 
     # Inverse FFT
     M = backwardmpo(ft.ftcore, sites; inputorder=:reversed)
-    @show M
 
     gtau = ITensors.apply(M, giv; kwargs...)
 
@@ -57,7 +54,6 @@ function to_tau(::Fermionic, ft::ImaginaryTimeFT, giv::MPS, beta::Float64; kwarg
         gtau[i] = noprime(gtau[i] * op("Phase", sites[i]; ϕ= θ * 2^(nbit_-i) ))
     end
 
-    @show gtau
     return gtau
 end
 
