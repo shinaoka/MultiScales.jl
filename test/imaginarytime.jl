@@ -31,7 +31,7 @@ end
         gtau_smpl, giv_smpl = _test_data_imaginarytime(nbit, β)
 
         sites = siteinds("Qubit", nbit)
-        gtau_mps = MultiScales.decompose(gtau_smpl, sites; cutoff = 1e-20)
+        gtau_mps = MultiScales.decompose_gtau(gtau_smpl, sites; cutoff = 1e-20)
 
         #@show gtau_mps
 
@@ -40,7 +40,7 @@ end
         @test gtau_smpl_reconst ≈ gtau_smpl
     end
 
-    @testset "ImaginaryTimeFT" begin
+    @testset "ImaginaryTimeFT.to_wn" begin
         ITensors.set_warn_order(100)
         β = 1.5
         nbit = 6
@@ -49,7 +49,7 @@ end
         gtau_smpl, giv_smpl = _test_data_imaginarytime(nbit, β)
 
         sites = [Index(2, "Qubit,τ=$t,iω=$(nbit+1-t)") for t in 1:nbit]
-        gtau_mps = MultiScales.decompose(gtau_smpl, sites; cutoff = 1e-20)
+        gtau_mps = MultiScales.decompose_gtau(gtau_smpl, sites; cutoff = 1e-20)
         ft = MultiScales.ImaginaryTimeFT(MultiScales.FTCore(sites))
         giv_mps = MultiScales.to_wn(Fermionic(), ft, gtau_mps, β; cutoff = 1e-20)
 
@@ -67,5 +67,41 @@ end
         #@test false
     end
 
-    #@test false
+    @testset "ImaginaryTimeFT.to_tau" begin
+        ITensors.set_warn_order(100)
+        β = 1.5
+        nbit = 8
+        nτ = 2^nbit
+
+        gtau_smpl, giv_smpl = _test_data_imaginarytime(nbit, β)
+
+        sites = [Index(2, "Qubit,τ=$t,iω=$(nbit+1-t)") for t in 1:nbit]
+        giv_mps = MultiScales.decompose_giv(giv_smpl, sites; cutoff = 1e-20)
+
+        ftcore = MultiScales.FTCore(sites)
+        ft = MultiScales.ImaginaryTimeFT(ftcore)
+        #@show "AAAAA"
+        gtau_mps = MultiScales.to_tau(Fermionic(), ft, giv_mps, β; cutoff = 1e-20)
+        #@show "AAAAA"
+        #@show gtau_mps
+        #@show "AAAAA"
+
+        # tau_Q, ..., tau_1
+        #@show MultiScales.backwardmpo(ftcore, sites)
+        #@show giv_mps
+        @show gtau_mps
+        t = gtau_mps[1] * gtau_mps[2]
+        #println("1 ", inds(t))
+        gtau = vec(Array(reduce(*, gtau_mps), reverse(sites)...))
+
+        open("test.txt", "w") do file
+            for i in 1:nτ
+                println(file, i, " ", real(gtau[i]), " ", imag(gtau[i]), " ", real(gtau_smpl[i]), " ", imag(gtau_smpl[i]))
+            end
+        end
+        ##@show giv_mps
+
+        @test maximum(abs, (gtau - gtau_smpl)[trunc(Int,0.2*nτ):trunc(Int,0.8*nτ)]) < 2e-2
+        #@test false
+    end
 end
