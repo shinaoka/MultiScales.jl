@@ -1,6 +1,6 @@
 using Test
 import MultiScales
-import ITensors: siteinds, Index
+import ITensors: siteinds, Index, MPO, hasind
 
 @testset "util.jl" begin
     @testset "replace_mpo_siteinds!" begin

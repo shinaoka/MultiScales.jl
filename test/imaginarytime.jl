@@ -81,7 +81,6 @@ end
         gtau_mps = MultiScales.to_tau(Fermionic(), ft, giv_mps, β; cutoff = 1e-20)
 
         # tau_Q, ..., tau_1
-        t = gtau_mps[1] * gtau_mps[2]
         #println("1 ", inds(t))
         gtau = vec(Array(reduce(*, gtau_mps), reverse(sites)...))
 
