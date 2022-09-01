@@ -2,22 +2,22 @@ using Test
 using MultiScales
 
 @testset "arithmetic.jl" begin
-    @testset "_halfader" begin
-        ader = MultiScales._ader(half=true)
-        @test size(ader) == (1, 2, 2, 2, 2)
+    @testset "_halfadder" begin
+        adder = MultiScales._adder(half=true)
+        @test size(adder) == (1, 2, 2, 2, 2)
         for (a, b, out, cout) in [
                 (0, 0, 0, 0),
                 (0, 1, 1, 0),
                 (1, 0, 1, 0),
                 (1, 1, 0, 1),
             ]
-            @test ader[1, cout+1, a+1, b+1, out+1] == 1.0
+            @test adder[1, cout+1, a+1, b+1, out+1] == 1.0
         end
     end
 
-    @testset "_ader" begin
-        ader = MultiScales._ader()
-        @test size(ader) == (2, 2, 2, 2, 2)
+    @testset "_adder" begin
+        adder = MultiScales._adder()
+        @test size(adder) == (2, 2, 2, 2, 2)
         for (cin, a, b, out, cout) in [
                 (0, 0, 0, 0, 0),
                 (0, 0, 1, 1, 0),
@@ -28,14 +28,14 @@ using MultiScales
                 (1, 1, 0, 0, 1),
                 (1, 1, 1, 1, 1),
             ]
-            @test ader[cin + 1, cout+1, a+1, b+1, out+1] == 1.0
+            @test adder[cin + 1, cout+1, a+1, b+1, out+1] == 1.0
         end
     end
 
-    @testset "_lastader" begin
+    @testset "_lastadder" begin
         for antiperiodic in [false, true]
-            ader = MultiScales._ader(last=true, antiperiodic=antiperiodic)
-            @test size(ader) == (2, 1, 2, 2, 2)
+            adder = MultiScales._adder(last=true, antiperiodic=antiperiodic)
+            @test size(adder) == (2, 1, 2, 2, 2)
             for (cin, a, b, out, cout) in [
                     (0, 0, 0, 0, 0),
                     (0, 0, 1, 1, 0),
@@ -47,7 +47,7 @@ using MultiScales
                     (1, 1, 1, 1, 1),
                 ]
                 coeff::ComplexF64 = ((antiperiodic && cout != 0) ? -1 : 1)
-                @test ader[cin + 1, 1, a+1, b+1, out+1] == coeff
+                @test adder[cin + 1, 1, a+1, b+1, out+1] == coeff
             end
         end
     end
