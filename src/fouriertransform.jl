@@ -50,108 +50,7 @@ function _qft(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
         trans_t = ITensor(tmat, sites..., prime(reverse(sites))...)
     end
     M = MPO(trans_t, sites; cutoff=cutoff)
-    #@show "_qft", M
     return M
-end
-
-_delta(i, j) = Int(i == j)
-
-"""
-i runs from the left to the right
-"""
-function _tensor(nbit, layer, i, sign)
-    pos_leftmost_phase_tensor = nbit - layer + 1
-    if i < pos_leftmost_phase_tensor
-        if i == 1
-           return reshape(Matrix{ComplexF64}(I, 2, 2), (2, 2, 1))
-        else
-           return reshape(Matrix{ComplexF64}(I, 2, 2), (1, 2, 2, 1))
-        end
-    elseif i >= pos_leftmost_phase_tensor
-        nphase = i - pos_leftmost_phase_tensor + 1
-        ϕ = π * 0.5^(nphase-1)
-        _exp(x, k) = exp(sign * im * ϕ * (x-1) * (k-1))
-
-        if i == pos_leftmost_phase_tensor && i == nbit
-            arr = zeros(ComplexF64, 1, 2, 2)
-            for x in 1:2, k in 1:2
-                arr[1,x,k] = _exp(x, k)
-            end
-            return arr
-        end
-
-        if i == pos_leftmost_phase_tensor
-            arr = zeros(ComplexF64, 2, 2, 2)
-            for x in 1:2, k in 1:2
-                arr[x,k,k] = _exp(x, k)
-            end
-            return arr
-        end
-
-        if i == nbit
-            # (l, out, in)
-            arr = zeros(ComplexF64, 2, 2, 2)
-            for x in 1:2, k in 1:2
-                arr[k,x,x] = _exp(x, k)
-            end
-            return arr
-        end
-
-        arr = zeros(ComplexF64, 2, 2, 2, 2)
-        for x in 1:2, k in 1:2
-            arr[k,x,x,k] = _exp(x, k)
-        end
-        return arr
-    end
-end
-
-
-
-# Note: NOT type stable
-function _phasegate(nphase::Int, position, sign=1)
-    ϕ = π * 0.5^(nphase-1)
-    _exp(x, k) = exp(sign * im * ϕ * (x-1) * (k-1))
-    if position == :center
-        arr = zeros(ComplexF64, 2, 2, 2, 2)
-        for x in 1:2, k in 1:2
-            arr[k,x,x,k] = _exp(x, k)
-        end
-        return arr
-    elseif position == :left
-        arr = zeros(ComplexF64, 2, 2, 2)
-        for x in 1:2, k in 1:2
-            arr[x,k,k] = _exp(x, k)
-        end
-        #@show "left" arr
-        return arr
-    elseif position == :right
-        # (l, out, in)
-        arr = zeros(ComplexF64, 2, 2, 2)
-        for x in 1:2, k in 1:2
-            arr[k,x,x] = _exp(x, k)
-        end
-        return arr
-    elseif position == :only
-        arr = zeros(ComplexF64, 1, 2, 2)
-        for x in 1:2, k in 1:2
-            arr[1,x,k] = _exp(x, k)
-        end
-        return arr
-    else
-        error("Invalid position")
-    end
-end
-
-# Note: NOT type stable
-function _identitygate(position)
-    arr = Matrix{ComplexF64}(I, 2, 2)
-    if position == :center
-        return reshape(arr, (1,2,2,1))
-    elseif position == :left
-        return reshape(arr, (2,2,1))
-    else
-        error("Invalid position")
-    end
 end
 
 
@@ -163,51 +62,6 @@ function _assign!(M::MPO, n::Int, arr; autoreshape=false)
     return nothing
 end
 
-function _phasegates(sites, ntargetbits, sign)
-    N = length(sites)
-    offset = length(sites) - ntargetbits
-    M = MultiScales._zero_mpo(sites; linkdims=vcat(ones(Int,offset), fill(2,N-1-offset)))
-
-    # I gate
-    for n in 1:offset
-        pos = (n == 1) ? :left : :center
-        _assign!(M, n, _identitygate(pos))
-        #if ntargetbits == 1
-            #@show "debugI ", offset, M[1]
-        #end
-    end
-
-    # Phase gates
-    if ntargetbits == 1
-        _assign!(M, 1 + offset, _phasegate(1, :only, sign))
-        #@show "debug ", offset, M[1+offset]
-    else
-        _assign!(M, 1 + offset, _phasegate(1, :left, sign))
-        for i in 2:(ntargetbits-1)
-            _assign!(M, i + offset, _phasegate(i, :center, sign))
-        end
-        _assign!(M, ntargetbits + offset, _phasegate(ntargetbits, :right, sign))
-    end
-    return M
-end
-
-function _qft2(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
-    @assert inputorder == :normal
-    M = _phasegates(sites, 1, sign)
-    for layer in 2:length(sites)
-        tmp = _phasegates(sites, layer, sign)
-        #M = apply(_phasegates(sites, layer, sign), M; cutoff=cutoff, sign=sign)
-        M = apply(tmp, M; cutoff=cutoff, sign=sign)
-        for (i, m) in enumerate(tmp)
-            println("#############################")
-            println("#############################")
-
-            @show i, m
-        end
-    end
-    M *= 2.0^(-0.5 * length(sites))
-    return M
-end
 
 """
 For length(sites) == 1
@@ -228,6 +82,7 @@ function _qft_nsite1_wo_norm(sites; sign::Int=1, inputorder=:normal)
     return M
 end
 
+
 function _qft_wo_norm(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
     N = length(sites)
     if N == 1
@@ -236,7 +91,7 @@ function _qft_wo_norm(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:nor
 
     M_prev = _qft_wo_norm(
         sites[2:end]; cutoff=cutoff, sign=sign, inputorder=inputorder)
-    M_top = _qft_toplayer(sites; sign=1, inputorder=:normal)
+    M_top = _qft_toplayer(sites; sign=sign, inputorder=:normal)
 
     M = _contract(M_top, M_prev)
     ITensors.truncate!(M; cutoff=cutoff, sign=sign)
@@ -247,6 +102,11 @@ end
 function _qft3(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
     M = _qft_wo_norm(sites; cutoff=cutoff, sign=sign, inputorder=inputorder)
     M *= 2.0^(-0.5 * length(sites))
+
+    # Quick hack: In the Markus's note, the digits are ordered oppositely from the present convention.
+    M = MPO([M[n] for n in length(M):-1:1])
+    replace_mpo_siteinds!(M, reverse(sites), sites)
+
     return M
 end
 
@@ -260,6 +120,7 @@ function _qft_toplayer(sites; sign::Int=1, inputorder=:normal)
     # site = 1
     arr = zeros(ComplexF64, 2, 2, 2)
     for x in 1:2, k in 1:2
+        # arr: (out, in, link)
         arr[x,k,k] = exp(sign * im * π * (x-1) * (k-1))
     end
     push!(tensors, arr)
@@ -269,12 +130,14 @@ function _qft_toplayer(sites; sign::Int=1, inputorder=:normal)
         _exp(x, k) = exp(sign * im * ϕ * (x-1) * (k-1))
         # Right most tensor
         if n == N
+            # arr: (link, out, in)
             arr = zeros(ComplexF64, 2, 2, 2)
             for x in 1:2, k in 1:2
                 arr[k,x,x] = _exp(x, k)
             end
             push!(tensors, arr)
         else
+            # arr: (link_left, out, in, link_right)
             arr = zeros(ComplexF64, 2, 2, 2, 2)
             for x in 1:2, k in 1:2
                 arr[k,x,x,k] = _exp(x, k)
@@ -295,13 +158,14 @@ end
 
 function _contract(M_top, M_prev)
     length(M_top) == length(M_prev) + 1 || error("Length mismatch")
+    N = length(M_top)
     M_top = ITensors.replaceprime(M_top, 1=>2; tags="Qubit")
     M_top = ITensors.replaceprime(M_top, 0=>1; tags="Qubit")
     M_top_ = ITensors.data(M_top)
     M_prev_ = ITensors.data(M_prev)
 
     M_data = [M_top_[1]]
-    for n in 1:length(M_prev_)
+    for n in 1:(N-1)
         push!(M_data, M_top_[n+1] * M_prev_[n])
     end
 
