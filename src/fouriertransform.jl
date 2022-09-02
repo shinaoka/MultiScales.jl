@@ -27,9 +27,10 @@ Our definition of the Fourier transform is
 
 where we define the transformation matrix ``T`` and ``s = \pm 1``.
 """
-function _qft(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
+function _qft_ref(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
     abs(sign) == 1 || error("sign must either 1 or -1")
     inputorder ∈ [:normal, :reversed] || error("Invalid inputorder")
+    inputorder != :normal || error("reversed is not implemented")
 
     nbit = length(sites)
     N = 2^nbit
@@ -99,13 +100,16 @@ function _qft_wo_norm(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:nor
     return M
 end
 
-function _qft3(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
+function _qft(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
     M = _qft_wo_norm(sites; cutoff=cutoff, sign=sign, inputorder=inputorder)
     M *= 2.0^(-0.5 * length(sites))
 
-    # Quick hack: In the Markus's note, the digits are ordered oppositely from the present convention.
-    M = MPO([M[n] for n in length(M):-1:1])
-    replace_mpo_siteinds!(M, reverse(sites), sites)
+    # Quick hack: In the Markus's note,
+    # the digits are ordered oppositely from the present convention.
+    if inputorder == :normal
+        M = MPO([M[n] for n in length(M):-1:1])
+        replace_mpo_siteinds!(M, reverse(sites), sites)
+    end
 
     return M
 end
@@ -153,7 +157,6 @@ function _qft_toplayer(sites; sign::Int=1, inputorder=:normal)
 
     return M
 end
-
 
 
 function _contract(M_top, M_prev)
