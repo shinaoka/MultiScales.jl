@@ -53,3 +53,107 @@ function _qft(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
     #@show "_qft", M
     return M
 end
+
+_delta(i, j) = Int(i == j)
+
+# Note: NOT type stable
+function _phasegate(nphase::Int, position, sign=1)
+    ϕ = π * 0.5^(nphase-1)
+    _exp(x, k) = exp(sign * im * ϕ * (x-1) * (k-1))
+    if position == :center
+        arr = zeros(ComplexF64, 2, 2, 2, 2)
+        for x in 1:2, k in 1:2
+            arr[k,x,x,k] = _exp(x, k)
+        end
+        return arr
+    elseif position == :left
+        arr = zeros(ComplexF64, 2, 2, 2)
+        for x in 1:2, k in 1:2
+            arr[x,k,k] = _exp(x, k)
+        end
+        #@show "left" arr
+        return arr
+    elseif position == :right
+        # (l, out, in)
+        arr = zeros(ComplexF64, 2, 2, 2)
+        for x in 1:2, k in 1:2
+            arr[k,x,x] = _exp(x, k)
+        end
+        return arr
+    elseif position == :only
+        arr = zeros(ComplexF64, 1, 2, 2)
+        for x in 1:2, k in 1:2
+            arr[1,x,k] = _exp(x, k)
+        end
+        return arr
+    else
+        error("Invalid position")
+    end
+end
+
+# Note: NOT type stable
+function _identitygate(position)
+    arr = Matrix{ComplexF64}(I, 2, 2)
+    if position == :center
+        return reshape(arr, (1,2,2,1))
+    elseif position == :left
+        return reshape(arr, (2,2,1))
+    else
+        error("Invalid position")
+    end
+end
+
+
+function _assign!(M::MPO, n::Int, arr; autoreshape=false)
+    if autoreshape
+        arr = reshape(arr, map(dim, inds(M[n]))...)
+    end
+    M[n] = ITensor(arr, inds(M[n])...)
+    return nothing
+end
+
+function _phasegates(sites, ntargetbits, sign)
+    N = length(sites)
+    offset = length(sites) - ntargetbits
+    M = MultiScales._zero_mpo(sites; linkdims=vcat(ones(Int,offset), fill(2,N-1-offset)))
+
+    # I gate
+    for n in 1:offset
+        pos = (n == 1) ? :left : :center
+        _assign!(M, n, _identitygate(pos))
+        #if ntargetbits == 1
+            #@show "debugI ", offset, M[1]
+        #end
+    end
+
+    # Phase gates
+    if ntargetbits == 1
+        _assign!(M, 1 + offset, _phasegate(1, :only, sign))
+        #@show "debug ", offset, M[1+offset]
+    else
+        _assign!(M, 1 + offset, _phasegate(1, :left, sign))
+        for i in 2:(ntargetbits-1)
+            _assign!(M, i + offset, _phasegate(i, :center, sign))
+        end
+        _assign!(M, ntargetbits + offset, _phasegate(ntargetbits, :right, sign))
+    end
+    return M
+end
+
+function _qft2(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
+    @assert inputorder == :normal
+    M = _phasegates(sites, 1, sign)
+    for layer in 2:length(sites)
+        tmp = _phasegates(sites, layer, sign)
+        #M = apply(_phasegates(sites, layer, sign), M; cutoff=cutoff, sign=sign)
+        M = apply(tmp, M; cutoff=cutoff, sign=sign)
+        for (i, m) in enumerate(tmp)
+            println("#############################")
+            println("#############################")
+
+            @show i, m
+        end
+    end
+    M *= 2.0^(-0.5 * length(sites))
+    return M
+end

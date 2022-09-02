@@ -31,3 +31,27 @@ end
 Reverse the order of the physical indices of a MPO
 """
 #revserMPO(reverse([x for x in M]))
+
+
+"""
+Create a MPO with ITensor objects of ElType ComplexF64 filled with zero
+"""
+function _zero_mpo(sites; linkdims=ones(Int, length(sites)-1))
+    length(linkdims) == length(sites) - 1 || error("Length mismatch")
+    M = MPO(sites)
+    N = length(M)
+    links = [Index(1, "n=0,Link")]
+    for n in 1:(N-1)
+        push!(links, Index(linkdims[n], "n=$(n),Link"))
+    end
+    push!(links, Index(1, "n=$N,Link"))
+    for n in 1:N
+        inds_ = (links[n], sites[n]', sites[n], links[n + 1])
+        elm_ = zeros(ComplexF64, map(ITensors.dim, inds_)...)
+        M[n] = ITensor(elm_, inds_...)
+    end
+    M[1] *= ITensors.delta(links[1])
+    M[N] *= ITensors.delta(links[N + 1])
+    
+    return M
+end
