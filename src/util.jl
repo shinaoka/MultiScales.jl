@@ -37,7 +37,7 @@ Reverse the order of the physical indices of a MPO
 Create a MPO with ITensor objects of ElType ComplexF64 filled with zero
 """
 function _zero_mpo(sites; linkdims=ones(Int, length(sites)-1))
-    length(linkdims) == length(sites) - 1 || error("Length mismatch")
+    length(linkdims) == length(sites) - 1 || error("Length mismatch $(length(linkdims)) != $(length(sites)) - 1")
     M = MPO(sites)
     N = length(M)
     links = [Index(1, "n=0,Link")]

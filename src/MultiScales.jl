@@ -1,7 +1,7 @@
 module MultiScales
 
 import ITensors: siteinds, siteind, MPO, ITensor, MPS, noprime, prime, ind, inds
-import ITensors: op, replaceind!, uniqueind, unioninds, Index, delta, dim, apply
+import ITensors: op, replaceind!, uniqueind, unioninds, Index, delta, dim, apply, replaceprime
 import ITensors
 import ITensors.NDTensors: Tensor
 import SparseIR: Fermionic, Bosonic
