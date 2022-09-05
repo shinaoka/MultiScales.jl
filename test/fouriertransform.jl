@@ -3,11 +3,12 @@ using MultiScales
 using ITensors
 
 @testset "fouriertransform.jl" begin
-    @testset "_qft" for f in [MultiScales._qft_ref, MultiScales._qft], sign in [1, -1], nbit in [1, 2, 3]
+    @testset "_qft" for targetfunc in [MultiScales._qft_ref, MultiScales._qft], sign in [1, -1], nbit in [1, 2, 3]
+    #@testset "_qft" for targetfunc in [MultiScales._qft_ref], sign in [1], nbit in [1]
         N = 2^nbit
         
         sites = siteinds("Qubit", nbit)
-        M = f(sites; sign=sign)
+        M = targetfunc(sites; sign=sign)
 
         # Return the bit of an integer `i` at the position `pos` (`pos=1` is the least significant digit).
         bitat(i, pos) = ((i & 1<<(pos-1))>>(pos-1))

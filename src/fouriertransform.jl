@@ -30,7 +30,7 @@ where we define the transformation matrix ``T`` and ``s = \pm 1``.
 function _qft_ref(sites; cutoff::Float64=1e-14, sign::Int=1, inputorder=:normal)
     abs(sign) == 1 || error("sign must either 1 or -1")
     inputorder ∈ [:normal, :reversed] || error("Invalid inputorder")
-    inputorder != :normal || error("reversed is not implemented")
+    inputorder == :normal || error("reversed is not implemented")
 
     nbit = length(sites)
     N = 2^nbit
