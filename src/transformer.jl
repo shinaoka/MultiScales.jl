@@ -3,8 +3,8 @@ abstract type AbstractFT end
 struct FTCore
     forward::MPO
 
-    function FTCore(sites)
-        new(_qft(sites))
+    function FTCore(sites; kwargs...)
+        new(_qft(sites; kwargs...))
     end
 end
 

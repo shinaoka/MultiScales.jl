@@ -1,7 +1,8 @@
 module MultiScales
 
-import ITensors: siteinds, siteind, MPO, ITensor, MPS, noprime, prime, ind, inds
-import ITensors: op, replaceind!, uniqueind, unioninds, Index, delta, dim, apply, replaceprime
+import ITensors: siteinds, siteind, MPO, ITensor, MPS, noprime, prime, ind, inds, commonind, svd, onehot
+import ITensors: op, replaceind!, uniqueind, unioninds, Index, delta, dim, apply, replaceprime, onehot
+import ITensors: permute
 import ITensors
 import ITensors.NDTensors: Tensor
 import SparseIR: Fermionic, Bosonic
@@ -12,5 +13,6 @@ include("arithmetic.jl")
 include("fouriertransform.jl")
 include("transformer.jl")
 include("imaginarytime.jl")
+include("matmal.jl")
 
 end
