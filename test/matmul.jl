@@ -26,5 +26,22 @@ end
 
         @test _tomat(ab) ≈ abmat
     end
-    #@test false
+
+    @testset "matmul_thru_mpo" begin
+        nbit = 6
+        sites = siteinds("Qubit", nbit)
+        csites = [Index(4, "csite=$s") for s in 1:nbit÷2]
+
+        D = 2
+        a = randomMPS(sites; linkdims=D)
+        b = randomMPS(sites; linkdims=D)
+        mpo_a = MultiScales.tompo_matmul(a, csites)
+
+        b_ = MultiScales.combinesiteinds(b, csites)
+        ab = apply(mpo_a, b_)
+        ab = MultiScales.splitsiteind(ab, sites)
+
+        abmat = _tomat(a) * _tomat(b)
+        @test _tomat(ab) ≈ abmat
+    end
 end

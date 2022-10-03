@@ -1,6 +1,6 @@
-function siteinds(d::Vector{T}; kwargs...) where {T<:Integer}
-    return [siteind(d[n], n; kwargs...) for n in eachindex(d)]
-end
+#function _siteinds(d::Vector{T}; kwargs...) where {T<:Integer}
+    #return [siteind(d[n], n; kwargs...) for n in eachindex(d)]
+#end
 
 function extractsite(x::Union{MPS,MPO}, n::Int)
     if n == 1
@@ -85,38 +85,48 @@ linkdims(M) = [dim(ITensors.commonind(M[n], M[n+1])) for n in 1:(length(M)-1)]
 
 links(M) = [ITensors.commonind(M[n], M[n+1]) for n in 1:(length(M)-1)]
 
-function _split(t::ITensor, outerlinks, sites)
+function _split(t::ITensor, csite, outerlinks, sites)
+    length(sites) == 2 || error("Length of sites must be 2")
+
     Dleft = dim(outerlinks[1])
     Dright = dim(outerlinks[2])
     prod(size(t)) == 4 * Dleft * Dright || error("Length mismatch")
+    t = permute(t, [outerlinks[1], csite, outerlinks[2]])
     sites_ = [outerlinks[1], sites..., outerlinks[2]]
-    t_ = ITensor(ITensors.data(t), sites_...)
-    U, S, V = svd(t_, sites_[1], sites_[2])
+    t = ITensor(ITensors.data(t), sites_...)
+    U, S, V = svd(t, sites_[1], sites_[2])
     SV = S * V
     return U, SV
 end
 
 function splitsiteind(x::MPS, sites)
     N = length(x)
+    !hasedge(x) || error("x must not have edges")
     2N == length(sites) || error("Length mismatch")
     all((dim(s) for s in siteinds(x)) .== 4) || error("Dim of siteinds must be 4")
 
-    links = [Index(1, "Link=0"), [commonind(x[n], x[n+1]) for n in 1:(N-1)]..., Index(1, "Link=$N")]
+    csites = siteinds(x)
+    addedges!(x) # This will be canceled out by the following removeedges!
+
+    links = [_linkinds(x, csites)[1], linkinds(x)..., _linkinds(x, csites)[end]]
     res = ITensor[]
     for n in 1:N
-        t1, t2 = _split(x[n], links[n:n+1], sites[2n-1:2n])
+        t1, t2 = _split(x[n], csites[n], links[n:n+1], sites[2n-1:2n])
         push!(res, t1)
         push!(res, t2)
     end
+
+    removeedges!(x, csites)
+
     linksnew = [links[1], [commonind(res[n], res[n+1]) for n in 1:2N-1]..., links[end]]
     linksnew2 = [Index(dim(linksnew[n+1]), ITensors.defaultlinktags(n)) for n in 0:2N]
     for n in 1:2N
         replaceind!(res[n], linksnew[n], linksnew2[n])
         replaceind!(res[n], linksnew[n+1], linksnew2[n+1])
     end
-    res[1] *= onehot(Float64, linksnew2[1]=>1)
-    res[end] *= onehot(Float64, linksnew2[end]=>1)
-    return MPS(res)
+    M = MPS(res)
+    removeedges!(M, sites)
+    return M
 end
 
 function addedges!(x::MPS)
@@ -129,14 +139,36 @@ function addedges!(x::MPS)
     return nothing
 end
 
-function removeedges!(x::MPS)
+
+function addedges!(x::MPO)
     length(inds(x[1])) == 3 || error("Dim of the first tensor must be 3")
     length(inds(x[end])) == 3 || error("Dim of the last tensor must be 3")
-    x[1] *= onehot(Float64, inds(x[1])[1]=>1)
-    x[end] *= onehot(Float64, inds(x[end])[end]=>1)
+    linkl = Index(1, "Link,l=0")
+    linkr = Index(1, "Link,l=$(length(x))")
+    x[1] = ITensor(ITensors.data(x[1]), [linkl, inds(x[1])...])
+    x[end] = ITensor(ITensors.data(x[end]), [inds(x[end])..., linkr])
     return nothing
 end
 
+
+function removeedges!(x::MPS, sites)
+    length(inds(x[1])) == 3 || error("Dim of the first tensor must be 3")
+    length(inds(x[end])) == 3 || error("Dim of the last tensor must be 3")
+    elt = eltype(x[1])
+    x[1] *= onehot(elt, uniqueind(x[1], x[2], sites)=>1)
+    x[end] *= onehot(elt, uniqueind(x[end], x[end-1], sites)=>1)
+    return nothing
+end
+
+
+function removeedges!(x::MPO, sites)
+    length(inds(x[1])) == 4 || error("Dim of the first tensor must be 4")
+    length(inds(x[end])) == 4 || error("Dim of the last tensor must be 4")
+    elt = eltype(x[1])
+    x[1] *= onehot(elt, uniqueind(x[1], x[2], sites, prime.(sites))=>1)
+    x[end] *= onehot(elt, uniqueind(x[end], x[end-1], sites, prime.(sites))=>1)
+    return nothing
+end
 
 function combinesiteinds(x, sites)
     N = length(x)
@@ -158,8 +190,26 @@ function combinesiteinds(x, sites)
     end
 
     res =  MPS(tensors)
-    removeedges!(res)
+    removeedges!(res, sites)
     return res
 end
 
 _mklinks(dims) = [Index(dims[l], "Link,l=$l") for l in eachindex(dims)]
+
+hasedge(M::MPS) = (length(inds(M[1])) == 3)
+
+
+function _linkinds(M::MPS, sites::Vector{T}) where T
+    N = length(M)
+    if hasedge(M)
+        links = T[]
+        push!(links, uniqueind(M[1], M[2], sites))
+        for n in 1:(N-1)
+            push!(links, commonind(M[n], M[n+1]))
+        end
+        push!(links, uniqueind(M[end], M[end-1], sites))
+        return links
+    else
+        return linkinds(M)
+    end
+end

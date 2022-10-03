@@ -20,8 +20,7 @@ using ITensors
         true
     end
 
-    @testset "splitsiteind" begin
-        nbit = 6
+    @testset "splitsiteind" for nbit in [4, 6]
         sites = siteinds("Qubit", nbit)
         csites = [Index(4, "csite=$s") for s in 1:nbit÷2]
         D = 3
@@ -31,5 +30,26 @@ using ITensors
 
         mps_reconst = MultiScales.combinesiteinds(mps_split, csites)
         @test vec(Array(reduce(*, mps_reconst), csites)) ≈ vec(Array(reduce(*, mps), csites))
+    end
+
+    @testset "linkinds" begin
+        nbit = 3
+        sites = siteinds("Qubit", nbit)
+        a = randomMPS(sites; linkdims=3)
+        l = MultiScales._linkinds(a, sites)
+        @test all(hastags.(l, "Link"))
+        @test length(l) == nbit-1
+    end
+
+    @testset "linkinds2" begin
+        nbit = 3
+        sites = siteinds("Qubit", nbit)
+        a = randomMPS(sites; linkdims=3)
+        MultiScales.addedges!(a)
+        l = MultiScales._linkinds(a, sites)
+        #@show l
+        #@show length(l)
+        @test all(hastags.(l, "Link"))
+        @test length(l) == nbit+1
     end
 end
