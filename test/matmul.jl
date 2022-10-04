@@ -20,11 +20,10 @@ end
         a = randomMPS(sites; linkdims=D)
         b = randomMPS(sites; linkdims=D)
 
-        ab = MultiScales.matmul(a, b)
-
         abmat = _tomat(a) * _tomat(b)
 
-        @test _tomat(ab) ≈ abmat
+        @test _tomat(MultiScales.matmul(a, b)) ≈ abmat
+        @test _tomat(MultiScales.matmul_naive(a, b)) ≈ abmat
     end
 
     @testset "matmul_thru_mpo" begin
