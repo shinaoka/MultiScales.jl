@@ -11,19 +11,25 @@ function _tomat(a)
 end
 
 @testset "matmul.jl" begin
-    @testset "matmul" begin
+    #@testset "matmul" for _matmul in [MultiScales.matmul, MultiScales.matmul_naive]
+    @testset "matmul" for _matmul in [MultiScales.matmul]
         nbit = 6
         sites = siteinds("Qubit", nbit)
         csites = [Index(4, "csite=$s") for s in 1:nbit÷2]
 
-        D = 3
+        D = 2
         a = randomMPS(sites; linkdims=D)
         b = randomMPS(sites; linkdims=D)
+        c = randomMPS(sites; linkdims=D)
 
         abmat = _tomat(a) * _tomat(b)
+        abcmat = abmat * _tomat(c)
 
-        @test _tomat(MultiScales.matmul(a, b)) ≈ abmat
-        @test _tomat(MultiScales.matmul_naive(a, b)) ≈ abmat
+        ab = _matmul(a, b)
+        @test _tomat(ab) ≈ abmat
+
+        abc = _matmul(ab, c)
+        @test _tomat(abc) ≈ abcmat
     end
 
     @testset "matmul_thru_mpo" begin

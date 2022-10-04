@@ -170,28 +170,33 @@ function removeedges!(x::MPO, sites)
     return nothing
 end
 
-function combinesiteinds(x, sites)
+function combinesiteinds(x::MPS, csites)
+    !hasedge(x) || error("MPS must not have edges")
+
     N = length(x)
     halfN = N ÷ 2
 
-    tensors = ITensor[]
-    links = [commonind(x[n], x[n+1]) for n in 1:N-1]
-    linkdims_new = [dim(links[n]) for n in 2:2:N-1]
-    links_new = [
-            Index(1, ITensors.defaultlinktags(0)),
-            [Index(linkdims_new[n], ITensors.defaultlinktags(n)) for n in 1:(halfN-1)]...,
-            Index(1, ITensors.defaultlinktags(halfN))
-        ]
+    sites = siteinds(x)
+    links = _linkinds(x, sites)
+    links_new = links[2:2:N-1]
+    
 
+    tensors = ITensor[]
     for n in 1:halfN
         t = x[2n-1] * x[2n]
-        tdata = Array(t, inds(t)) # Better way?
-        push!(tensors, ITensor(tdata, links_new[n], sites[n], links_new[n+1]))
+        if n == 1
+            data = Array(t, [sites[1], sites[2], links_new[1]])
+            push!(tensors, ITensor(data, [csites[1], links_new[1]]))
+        elseif n == halfN
+            data = Array(t, [links_new[end], sites[end-1], sites[end]])
+            push!(tensors, ITensor(data, [links_new[end], csites[end]]))
+        else
+            data = Array(t, [links_new[n-1], sites[2n-1], sites[2n], links_new[n]])
+            push!(tensors, ITensor(data, [links_new[n-1], csites[n], links_new[n]]))
+        end
     end
 
-    res =  MPS(tensors)
-    removeedges!(res, sites)
-    return res
+    return MPS(tensors)
 end
 
 _mklinks(dims) = [Index(dims[l], "Link,l=$l") for l in eachindex(dims)]

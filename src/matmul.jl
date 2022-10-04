@@ -1,16 +1,18 @@
+
 function matmul(a::MPS, b::MPS; kwargs...)
     N = length(a)
     mod(N, 2) == 0 || error("Length of a must be even")
     length(a) == length(b) || error("Length mismatch")
-    all(siteinds(a) .== siteinds(b)) || error("site indices are not consistent")
     halfN = N ÷ 2
 
     csites = [Index(4, "csite=$s") for s in 1:halfN]
     mpo_a = MultiScales.tompo_matmul(a, csites)
 
     b_ = MultiScales.combinesiteinds(b, csites)
+
     ab = apply(mpo_a, b_; kwargs...)
-    return MultiScales.splitsiteind(ab, siteinds(a))
+    res = MultiScales.splitsiteind(ab, siteinds(a))
+    return res
 end
 
 
