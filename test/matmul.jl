@@ -11,8 +11,8 @@ function _tomat(a)
 end
 
 @testset "matmul.jl" begin
-    #@testset "matmul" for _matmul in [MultiScales.matmul, MultiScales.matmul_naive]
-    @testset "matmul" for _matmul in [MultiScales.matmul]
+    @testset "matmul" for _matmul in [MultiScales.matmul, MultiScales.matmul_naive]
+    #@testset "matmul" for _matmul in [MultiScales.matmul]
         nbit = 6
         sites = siteinds("Qubit", nbit)
         csites = [Index(4, "csite=$s") for s in 1:nbit÷2]

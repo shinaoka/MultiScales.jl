@@ -73,7 +73,7 @@ function _tompo_matmul(t1::ITensor, t2::ITensor, sites, links, s)
 end
 
 
-function tompo_matmul(a::MPS, csites)
+function _tompo_matmul(a::MPS, csites; targetsites=siteinds(a))
     N = length(a)
     sites = siteinds(a)
 
@@ -83,17 +83,21 @@ function tompo_matmul(a::MPS, csites)
 
     addedges!(a)
     linksa = _linkinds(a, sites)
-    tensors = [
-                _tompo_matmul(
-                    a[2*n-1], a[2*n], sites[2*n-1:2*n], linksa[2*n-1:2*n+1], csites[n])
-                for n in 1:halfN
-            ]
-    #for (n, t) in enumerate(tensors)
-        #@show n, t
-    #end
+    tensors = ITensor[]
+    for n in 1:halfN
+        startpos = findsite(a, targetsites[2*n-1])
+        targetsites[2*n] == sites[startpos+1] || error("Not found")
+        push!(tensors,
+            _tompo_matmul(a[startpos], a[startpos+1], sites[startpos:startpos+1], linksa[startpos:startpos+2], csites[n])
+        )
+    end
     removeedges!(a, sites)
+    return tensors
+end
 
-    res = MPO(tensors)
-    removeedges!(res, csites)
-    return res
+
+function tompo_matmul(a::MPS, csites; targetsites=siteinds(a))
+    M = MPO(_tompo_matmul(a, csites; targetsites=targetsites))
+    removeedges!(M, csites)
+    return M
 end
