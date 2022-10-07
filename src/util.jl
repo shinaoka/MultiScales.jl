@@ -115,8 +115,6 @@ function _splitsiteind(M::MPS, sites, s1, s2, csite)
 end
 
 
-splitsiteinds = splitsiteind
-
 function splitsiteind(M::MPS, sites; targetcsites=siteinds(M))
     !hasedge(M) || error("M must not have edges")
     2 * length(targetcsites) == length(sites) || error("Length mismatch")
@@ -134,6 +132,8 @@ function splitsiteind(M::MPS, sites; targetcsites=siteinds(M))
     removeedges!(res, sites_res)
     return res
 end
+
+splitsiteinds = splitsiteind
 
 function addedges!(x::MPS)
     length(inds(x[1])) == 2 || error("Dim of the first tensor must be 2")
