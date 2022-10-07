@@ -90,6 +90,10 @@ function _split(t::ITensor, csite, outerlinks, sites)
 
     Dleft = dim(outerlinks[1])
     Dright = dim(outerlinks[2])
+    #prod(size(t)) == 4 * Dleft * Dright || @show t
+    #prod(size(t)) == 4 * Dleft * Dright || @show csite
+    #prod(size(t)) == 4 * Dleft * Dright || @show outerlinks
+    #prod(size(t)) == 4 * Dleft * Dright || @show sites
     prod(size(t)) == 4 * Dleft * Dright || error("Length mismatch")
     t = permute(t, [outerlinks[1], csite, outerlinks[2]])
     sites_ = [outerlinks[1], sites..., outerlinks[2]]
@@ -99,34 +103,36 @@ function _split(t::ITensor, csite, outerlinks, sites)
     return U, SV
 end
 
-function splitsiteind(x::MPS, sites)
-    N = length(x)
-    !hasedge(x) || error("x must not have edges")
-    2N == length(sites) || error("Length mismatch")
-    all((dim(s) for s in siteinds(x)) .== 4) || error("Dim of siteinds must be 4")
 
-    csites = siteinds(x)
-    addedges!(x) # This will be canceled out by the following removeedges!
+function _splitsiteind(M::MPS, sites, s1, s2, csite)
+    hasedge(M) || error("M must have edges")
 
-    links = [_linkinds(x, csites)[1], linkinds(x)..., _linkinds(x, csites)[end]]
-    res = ITensor[]
-    for n in 1:N
-        t1, t2 = _split(x[n], csites[n], links[n:n+1], sites[2n-1:2n])
-        push!(res, t1)
-        push!(res, t2)
+    n = findsite(M, csite) 
+    l = _linkinds(M, sites)
+    tensors = _split(M[n], csite, l[n:n+1], [s1, s2])
+    return MPS([M[1:n-1]..., tensors..., M[n+1:end]...]),
+        [sites[1:n-1]..., s1, s2, sites[n+1:end]...]
+end
+
+
+splitsiteinds = splitsiteind
+
+function splitsiteind(M::MPS, sites; targetcsites=siteinds(M))
+    !hasedge(M) || error("M must not have edges")
+    2 * length(targetcsites) == length(sites) || error("Length mismatch")
+
+    sites_M = siteinds(M)
+    sites_res = siteinds(M)
+    addedges!(M) # This will be canceled out by the following removeedges!
+
+    res = copy(M)
+    for n in eachindex(targetcsites)
+        res, sites_res = _splitsiteind(res, sites_res, sites[2*n-1], sites[2*n], targetcsites[n])
     end
 
-    removeedges!(x, csites)
-
-    linksnew = [links[1], [commonind(res[n], res[n+1]) for n in 1:2N-1]..., links[end]]
-    linksnew2 = [Index(dim(linksnew[n+1]), ITensors.defaultlinktags(n)) for n in 0:2N]
-    for n in 1:2N
-        replaceind!(res[n], linksnew[n], linksnew2[n])
-        replaceind!(res[n], linksnew[n+1], linksnew2[n+1])
-    end
-    M = MPS(res)
-    removeedges!(M, sites)
-    return M
+    removeedges!(M, sites_M)
+    removeedges!(res, sites_res)
+    return res
 end
 
 function addedges!(x::MPS)
@@ -170,36 +176,48 @@ function removeedges!(x::MPO, sites)
     return nothing
 end
 
-function combinesiteinds(x::MPS, csites)
-    !hasedge(x) || error("MPS must not have edges")
 
-    N = length(x)
-    halfN = N ÷ 2
-
-    sites = siteinds(x)
-    links = _linkinds(x, sites)
-    links_new = links[2:2:N-1]
-    
-
-    tensors = ITensor[]
-    for n in 1:halfN
-        t = x[2n-1] * x[2n]
-        if n == 1
-            data = Array(t, [sites[1], sites[2], links_new[1]])
-            push!(tensors, ITensor(data, [csites[1], links_new[1]]))
-        elseif n == halfN
-            data = Array(t, [links_new[end], sites[end-1], sites[end]])
-            push!(tensors, ITensor(data, [links_new[end], csites[end]]))
-        else
-            data = Array(t, [links_new[n-1], sites[2n-1], sites[2n], links_new[n]])
-            push!(tensors, ITensor(data, [links_new[n-1], csites[n], links_new[n]]))
-        end
+function _combinesiteinds(t1::ITensor, t2::ITensor, s1, s2, csite)
+    t = t1 * t2
+    if dim(t1) == 2
+        # Left edge
+        l = uniqueinds(inds(t), [s1, s2])
+        return ITensor(Array(t, [s1, s2, l]), [csite, l])
+    elseif dim(t2) == 2
+        # right edge
+        l = uniqueinds(inds(t), [s1, s2])
+        return ITensor(Array(t, [l, s1, s2]), [l, csite])
+    else
+        l1 = uniqueinds(inds(t), s1, s2, t2)
+        l2 = uniqueinds(inds(t), s1, s2, t1)
+        return ITensor(Array(t, [l1, s1, s2, l2]), [l1, csite, l2])
     end
-
-    return MPS(tensors)
 end
 
+
+function _combinesiteinds(M::MPS, tsite1, tsite2, csite)
+    !hasedge(M) || error("MPS must not have edges")
+
+    sp = findsite(M, tsite1)
+    siteind(M, sp+1) == tsite2 || error("Found wrong site")
+
+    ctensor = _combinesiteinds(M[sp], M[sp+1], tsite1, tsite2, csite)
+    return MPS([M[1:sp-1]..., ctensor, M[sp+2:end]...])
+end
+
+
+function combinesiteinds(M::MPS, csites; targetsites::Vector=siteinds(M))
+    !hasedge(M) || error("MPS must not have edges")
+    length(targetsites) == 2*length(csites) || error("Length mismatch")
+    for n in eachindex(csites)
+        M = _combinesiteinds(M, targetsites[2*n-1], targetsites[2*n], csites[n])
+    end
+    return M
+end
+
+
 _mklinks(dims) = [Index(dims[l], "Link,l=$l") for l in eachindex(dims)]
+
 
 hasedge(M::MPS) = (length(inds(M[1])) == 3)
 

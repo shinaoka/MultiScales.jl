@@ -73,18 +73,19 @@ function _tompo_matmul(t1::ITensor, t2::ITensor, sites, links, s)
 end
 
 
-function _tompo_matmul(a::MPS, csites; targetsites=siteinds(a))
-    N = length(a)
+"""
+Create tensors for matmul
+"""
+function tensors_matmul!(tensors::Vector{ITensor}, a::MPS, csites; targetsites=siteinds(a))
     sites = siteinds(a)
+    length(targetsites) == 2*length(csites) || error("Length mismatch")
 
-    mod(N, 2) == 0 || error("Length of a must be even")
-    length(a) == 2*length(csites) || error("Length mismatch")
-    halfN = N ÷ 2
+    #N = length(a)
+    #halfN = N ÷ 2
 
     addedges!(a)
     linksa = _linkinds(a, sites)
-    tensors = ITensor[]
-    for n in 1:halfN
+    for n in eachindex(csites)
         startpos = findsite(a, targetsites[2*n-1])
         targetsites[2*n] == sites[startpos+1] || error("Not found")
         push!(tensors,
@@ -92,12 +93,43 @@ function _tompo_matmul(a::MPS, csites; targetsites=siteinds(a))
         )
     end
     removeedges!(a, sites)
-    return tensors
+    return nothing
 end
 
 
 function tompo_matmul(a::MPS, csites; targetsites=siteinds(a))
-    M = MPO(_tompo_matmul(a, csites; targetsites=targetsites))
+    tensors = ITensor[]
+    tensors_matmul!(tensors, a, csites; targetsites=targetsites)
+    M = MPO(tensors)
     removeedges!(M, csites)
+    return M
+end
+
+
+"""
+Create tensors for elementwise product
+"""
+function tensors_elementwiseprod!(tensors::Vector{ITensor}, a::MPS; targetsites=siteinds(a))
+    Ntarget = length(targetsites)
+    sites = siteinds(a)
+    addedges!(a)
+
+    for n in 1:Ntarget
+        pos = findsite(a, targetsites[n])
+        t = copy(a[pos])
+        replaceind!(t, sites[pos], sites[pos]'')
+        push!(tensors, t * delta(sites[pos], sites[pos]', sites[pos]''))
+    end
+
+    removeedges!(a, sites)
+    return nothing
+end
+
+
+function tompo_elementwiseprod(a::MPS; targetsites=siteinds(a))
+    tensors = ITensor[]
+    tensors_elementwiseprod!(tensors, a; targetsites=targetsites)
+    M = MPO(tensors)
+    removeedges!(M, siteinds(a))
     return M
 end
