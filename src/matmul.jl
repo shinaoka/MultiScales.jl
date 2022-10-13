@@ -92,6 +92,11 @@ function tensors_matmul!(tensors::Vector{ITensor}, a::MPS, csites; targetsites=s
             _tompo_matmul(a[startpos], a[startpos+1], sites[startpos:startpos+1], linksa[startpos:startpos+2], csites[n])
         )
     end
+    # Hack
+    for (n, t) in enumerate(tensors)
+        inds_ = inds(t)
+        tensors[n] = permute(t, [inds_[1], inds_[3], inds_[4], inds_[2]])
+    end
     removeedges!(a, sites)
     return nothing
 end
@@ -119,6 +124,12 @@ function tensors_elementwiseprod!(tensors::Vector{ITensor}, a::MPS; targetsites=
         t = copy(a[pos])
         replaceind!(t, sites[pos], sites[pos]'')
         push!(tensors, t * delta(sites[pos], sites[pos]', sites[pos]''))
+    end
+
+    # Hack
+    for (n, t) in enumerate(tensors)
+        inds_ = inds(t)
+        tensors[n] = permute(t, [inds_[1], inds_[3], inds_[4], inds_[2]])
     end
 
     removeedges!(a, sites)

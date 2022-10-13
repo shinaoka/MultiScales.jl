@@ -1,6 +1,7 @@
 using Test
 import MultiScales
 using ITensors
+using ITensorTDVP
 
 function _tomat(a)
     sites = siteinds(a)
@@ -11,7 +12,7 @@ function _tomat(a)
 end
 
 
-function _matmul_xy(a, b)
+function _matmul_xy(a, b; kwargs...)
     length(a) == length(b) || error("Length mismatch")
     all(siteinds(a) .== siteinds(b)) || error("Site indices mismatch")
 
@@ -44,12 +45,9 @@ function _matmul_xy(a, b)
         push!(sites_wrk, sz[n])
     end
 
-    #for t in tensors
-        #@show inds(t)
-    #end
-
-    ab_ = apply(MPO(tensors), b_)
-    MultiScales.removeedges!(ab_, sites_wrk)
+    mpo = MPO(tensors)
+    MultiScales.removeedges!(mpo, sites_wrk)
+    ab_ = apply(mpo, b_; kwargs...)
 
     return MultiScales.splitsiteinds(ab_, sxy; targetcsites=csites)
 end
@@ -146,38 +144,13 @@ end
             ab_arr[:, :, z] .= a_arr[:, :, z] * b_arr[:, :, z]
         end
 
-        #==
-        csites = [Index(4, "csite,n=$n") for n in 1:nbit]
-        b_ = MultiScales.combinesiteinds(b, csites; targetsites=sxy)
-
-        t_xy = ITensor[]
-        MultiScales.tensors_matmul!(t_xy, a, csites; targetsites=sxy)
-
-        t_z = ITensor[]
-        MultiScales.tensors_elementwiseprod!(t_z, a; targetsites=sz)
-
-        tensors = ITensor[]
-        sites_wrk = typeof(sites[1])[]
-        for n in 1:nbit
-            push!(tensors, t_xy[n])
-            push!(tensors, t_z[n])
-            push!(sites_wrk, csites[n])
-            push!(sites_wrk, sz[n])
-        end
-
-        for t in tensors
-            @show inds(t)
-        end
-
-        ab_ = apply(MPO(tensors), b_)
-        MultiScales.removeedges!(ab_, sites_wrk)
-        ab = MultiScales.splitsiteinds(ab_, sxy; targetcsites=csites)
-        ==#
-
-        ab = _matmul_xy(a, b)
+        ab = _matmul_xy(a, b; alg="fit", nsite=2)
+        #ab = _matmul_xy(a, b)
         ab_arr_reconst = _tomat3(ab)
+        #@show vec(ab_arr)[1:10]
+        #@show vec(ab_arr_reconst)[1:10]
         @test ab_arr ≈ ab_arr_reconst
 
-        #@test false
+        @test false
     end
 end

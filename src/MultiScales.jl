@@ -8,6 +8,7 @@ import LinearAlgebra: I
 
 include("util.jl")
 include("arithmetic.jl")
+include("mps.jl")
 include("fouriertransform.jl")
 include("transformer.jl")
 include("imaginarytime.jl")
