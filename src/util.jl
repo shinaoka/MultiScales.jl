@@ -280,3 +280,6 @@ function tobin!(x::Int, xbin::Vector{Int})
         mask = mask >> 1
     end
 end
+
+# Get bit at pos (>=0). pos=0 is the least significant digit.
+_getbit(i, pos) = ((i & (1 << pos)) >> pos)
