@@ -150,7 +150,5 @@ end
         #@show vec(ab_arr)[1:10]
         #@show vec(ab_arr_reconst)[1:10]
         @test ab_arr ≈ ab_arr_reconst
-
-        @test false
     end
 end

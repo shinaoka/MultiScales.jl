@@ -236,3 +236,50 @@ function _linkinds(M::MPS, sites::Vector{T}) where T
         return linkinds(M)
     end
 end
+
+
+"""
+Decompose a tensor into a set of indices by QR
+"""
+function split_tensor(tensor::ITensor, inds_list::Vector{Vector{Index{T}}}) where T
+    result = ITensor[]
+    for (i, inds) in enumerate(inds_list)
+        if i == length(inds_list)
+            push!(result, tensor)
+        else
+            Q, R, _ = qr(tensor, inds)
+            push!(result, Q)
+            tensor = R
+        end
+    end
+    return result
+end
+
+
+function cleanup_linkinds!(M)
+    links_new = [Index(dim(l), "Link,l=$idx") for (idx, l) in enumerate(linkinds(M))]
+    links_old = linkinds(M)
+    for n in 1:length(M)
+        if n < length(M)
+            replaceind!(M[n], links_old[n], links_new[n])
+        end
+        if n > 1
+            replaceind!(M[n], links_old[n-1], links_new[n-1])
+        end
+    end
+end
+
+"""
+To digits
+"""
+function tobin!(x::Int, xbin::Vector{Int})
+    nbit = length(xbin)
+    mask = 1 << (nbit-1)
+    for i in 1:nbit
+        xbin[i] = (mask & x) >> (nbit - i)
+        mask = mask >> 1
+    end
+end
+
+# Get bit at pos (>=0). pos=0 is the least significant digit.
+_getbit(i, pos) = ((i & (1 << pos)) >> pos)

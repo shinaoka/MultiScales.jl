@@ -64,4 +64,12 @@ using ITensors
         @test all(hastags.(l, "Link"))
         @test length(l) == nbit+1
     end
+
+    @testset "split_tensor" begin
+        nsite = 6
+        sites = [Index(2, "Qubit, site=$n") for n in 1:nsite]
+        tensor = randomITensor(sites)
+        tensors = MultiScales.split_tensor(tensor, [sites[1:2], sites[3:4], sites[5:6]])
+        @test tensor ≈ reduce(*, tensors)
+    end
 end
